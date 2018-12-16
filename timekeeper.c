@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
                 " %s\n",
                 argv[1]
             );
-            return 1;
+            exit(1);
         }
     } else if (pid > 0) {
         printf(

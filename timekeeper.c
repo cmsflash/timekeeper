@@ -65,7 +65,7 @@ double to_double(const struct timespec* spec) {
     return time;
 }
 
-char** read_proc_file(
+char** read_proc_file_alloc(
         const int pid, const char* filename, const int line_count
     ) {
     char* path = (char*)malloc(DEFAULT_STRING_SIZE);
@@ -77,6 +77,7 @@ char** read_proc_file(
         fscanf(file, "%s", lines[i]);
     }
     fclose(file);
+    free(path);
     return lines;
 }
 
@@ -94,6 +95,13 @@ void execute(const char* command, const char** arguments) {
         );
         exit(1);
     }
+}
+
+void double_free(const void** pointer, const int length) {
+    for (int i = 0; i < length; i++) {
+        free(pointer[i]);
+    }
+    free(pointer);
 }
 
 int main(int argc, char** argv) {
@@ -143,8 +151,8 @@ int main(int argc, char** argv) {
         int return_status;
         waitid(P_PID, pid, NULL, WNOWAIT);
 
-        char** stats = read_proc_file(pid, "stat", 44);
-        char** statuses = read_proc_file(pid, "status", 93);
+        char** stats = read_proc_file_alloc(pid, "stat", 44);
+        char** statuses = read_proc_file_alloc(pid, "status", 93);
         
         struct timespec stop, real_time;
         clock_gettime(CLOCK_MONOTONIC, &stop);
@@ -179,6 +187,8 @@ int main(int argc, char** argv) {
             ),
             to_double(&real_time), user_time, sys_time, context_switches
         );
+        double_free(stats, 44);
+        double_free(statuses, 93);
         return 0;
     } else {
         printf("Error creating new process(es)");

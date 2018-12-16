@@ -56,4 +56,6 @@ dkms.conf
 *.py
 *.txt
 timekeeper
+timekeeper_*.c
+timekeeper_*.zip
 

@@ -63,33 +63,11 @@ double to_double(struct timespec* spec) {
     return time;
 }
 
-/*struct process* construct_process(char** argv, int start_index, int end_index) {
-    char** args = (char**)malloc((end_index - start_index + 1) * sizeof(char*));
-}*/
-
 int main(int argc, char** argv) {
     if (argc == 1) {
         return;
     }
     signal(SIGINT, deliver_to_child);
-    /*int process_count = 1;
-    for (int i = 1; i < argc; i++() {
-        if (strcmp(argv[i], "!") == 0) {
-            process_count++;
-        }
-    }
-    struct process** processes = (
-        (struct process**)malloc(process_count * sizeof(struct process*))
-    )
-    int first_arg_index = 1;
-    for (int i = 1; i < argc; i++() {
-        if (strcmp(argv[i], "!") == 0) {
-            construct_process(argv, first_arg_index, i);
-        }
-        if (i == argc - 1) {
-            construct_process(argv, first_arg_index, argc);
-        }
-    }*/
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
     pid_t pid = fork();
@@ -97,28 +75,26 @@ int main(int argc, char** argv) {
         int success_code = execvp(argv[1], argv + 1);
         if (success_code == -1) {
             printf(
-                "timekeeper experienced an error in starting the command: %s\n",
+                "timekeeper experienced an error in starting the command:"
+                " %s\n",
                 argv[1]
             );
             return 1;
         }
     } else if (pid > 0) {
-        char* message = (char*)malloc(DEFAULT_STRING_SIZE);
-        sprintf(
-            message, "Process with id: %d created for the command: %s\n",
-            pid, argv[1]
+        printf(
+            "Process with id: %d created for the command: %s\n", pid, argv[1]
         );
-        printf(message);
         child_pid = pid;
         int return_status;
-        waitid(P_PID, pid, NULL, WNOWAIT | WEXITED);
+        waitid(P_PID, pid, NULL, WNOWAIT);
 
         char* stat_path = (char*)malloc(DEFAULT_STRING_SIZE);
         sprintf(stat_path, "/proc/%d/stat", pid);
         char** stats = (char**)malloc(44 * sizeof(char*));
         FILE* stat_file = fopen(stat_path, "r");
         for (int i = 0; i < 44; i++) {
-            stats[i] = malloc(DEFAULT_STRING_SIZE);
+            stats[i] = (char*)malloc(DEFAULT_STRING_SIZE);
             fscanf(stat_file, "%s", stats[i]);
         }
         fclose(stat_file);

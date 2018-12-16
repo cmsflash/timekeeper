@@ -80,6 +80,11 @@ char** read_proc_file(
     return lines;
 }
 
+double parse_stat_time(const char* stat) {
+    double time_ = ((double)strtol(stat, NULL, 10) / sysconf(_SC_CLK_TCK));
+    return time_;
+}
+
 int main(int argc, char** argv) {
     if (argc == 1) {
         return;
@@ -144,12 +149,8 @@ int main(int argc, char** argv) {
         int signaled = WIFSIGNALED(return_status);
         int signal_id = WTERMSIG(return_status);
         timespec_diff(&start, &stop, &real_time);
-        double user_time = (
-            (double)strtol(stats[14], NULL, 10) / sysconf(_SC_CLK_TCK)
-        );
-        double sys_time = (
-            (double)strtol(stats[15], NULL, 10) / sysconf(_SC_CLK_TCK)
-        );
+        double user_time = parse_stat_time(stats[14]);
+        double sys_time = parse_stat_time(stats[15]);
         int context_switches = atoi(statuses[87]) + atoi(statuses[89]);
         if (signaled) {
             printf(

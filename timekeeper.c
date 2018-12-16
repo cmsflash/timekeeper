@@ -150,20 +150,22 @@ int main(int argc, char** argv) {
         );
         current_child_pid = pid;
         int return_status;
-        waitid(P_PID, pid, NULL, WNOWAIT);
+        struct timespec stop, real_time;
 
+        waitid(P_PID, pid, NULL, WNOWAIT);
+        clock_gettime(CLOCK_MONOTONIC, &stop);
         char** stats = read_proc_file_alloc(pid, "stat", 44);
         char** statuses = read_proc_file_alloc(pid, "status", 93);
         
-        struct timespec stop, real_time;
-        clock_gettime(CLOCK_MONOTONIC, &stop);
         waitpid(pid, &return_status, 0);
         int signaled = WIFSIGNALED(return_status);
         int signal_id = WTERMSIG(return_status);
+
         timespec_diff(&start, &stop, &real_time);
         double user_time = parse_stat_time(stats[14]);
         double sys_time = parse_stat_time(stats[15]);
         int context_switches = atoi(statuses[87]) + atoi(statuses[89]);
+
         if (signaled) {
             printf(
                 (
@@ -188,6 +190,7 @@ int main(int argc, char** argv) {
             ),
             to_double(&real_time), user_time, sys_time, context_switches
         );
+        
         double_free(stats, 44);
         double_free(statuses, 93);
         return 0;

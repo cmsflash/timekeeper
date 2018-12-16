@@ -68,17 +68,17 @@ double to_double(struct timespec* spec) {
 char** read_proc_file(
         const int pid, const char* filename, const int line_count
     ) {
-        char* path = (char*)malloc(DEFAULT_STRING_SIZE);
-        sprintf(path, "/proc/%d/%s", pid, filename);
-        char** lines = (char**)malloc(line_count * sizeof(char*));
-        FILE* file = fopen(path, "r");
-        for (int i = 0; i < line_count; i++) {
-            lines[i] = malloc(DEFAULT_STRING_SIZE);
-            fscanf(file, "%s", lines[i]);
-        }
-        fclose(file);
-        return lines;
+    char* path = (char*)malloc(DEFAULT_STRING_SIZE);
+    sprintf(path, "/proc/%d/%s", pid, filename);
+    char** lines = (char**)malloc(line_count * sizeof(char*));
+    FILE* file = fopen(path, "r");
+    for (int i = 0; i < line_count; i++) {
+        lines[i] = malloc(DEFAULT_STRING_SIZE);
+        fscanf(file, "%s", lines[i]);
     }
+    fclose(file);
+    return lines;
+}
 
 int main(int argc, char** argv) {
     if (argc == 1) {

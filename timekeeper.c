@@ -65,6 +65,21 @@ double to_double(struct timespec* spec) {
     return time;
 }
 
+char** read_proc_file(
+        const int pid, const char* filename, const int line_count
+    ) {
+        char* path = (char*)malloc(DEFAULT_STRING_SIZE);
+        sprintf(path, "/proc/%d/%s", pid, filename);
+        char** lines = (char**)malloc(line_count * sizeof(char*));
+        FILE* file = fopen(path, "r");
+        for (int i = 0; i < line_count; i++) {
+            lines[i] = malloc(DEFAULT_STRING_SIZE);
+            fscanf(file, "%s", lines[i]);
+        }
+        fclose(file);
+        return lines;
+    }
+
 int main(int argc, char** argv) {
     if (argc == 1) {
         return;
@@ -120,25 +135,8 @@ int main(int argc, char** argv) {
         int return_status;
         waitid(P_PID, pid, NULL, WNOWAIT);
 
-        char* stat_path = (char*)malloc(DEFAULT_STRING_SIZE);
-        sprintf(stat_path, "/proc/%d/stat", pid);
-        char** stats = (char**)malloc(44 * sizeof(char*));
-        FILE* stat_file = fopen(stat_path, "r");
-        for (int i = 0; i < 44; i++) {
-            stats[i] = (char*)malloc(DEFAULT_STRING_SIZE);
-            fscanf(stat_file, "%s", stats[i]);
-        }
-        fclose(stat_file);
-        
-        char* status_path = (char*)malloc(DEFAULT_STRING_SIZE);
-        sprintf(status_path, "/proc/%d/status", pid);
-        char** statuses = (char**)malloc(93 * sizeof(char*));
-        FILE* status_file = fopen(status_path, "r");
-        for (int i = 0; i < 93; i++) {
-            statuses[i] = malloc(DEFAULT_STRING_SIZE);
-            fscanf(status_file, "%s", statuses[i]);
-        }
-        fclose(status_file);
+        char** stats = read_proc_file(pid, "stat", 44);
+        char** statuses = read_proc_file(pid, "status", 93);
         
         struct timespec stop, real_time;
         clock_gettime(CLOCK_MONOTONIC, &stop);

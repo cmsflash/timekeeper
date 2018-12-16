@@ -139,62 +139,64 @@ int main(int argc, char** argv) {
             argv_index++;
         }
     }
+
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
     pid_t pid = fork();
     if (pid == 0) {
         execute(argvs[0][0], argvs[0]);
-    } else if (pid > 0) {
-        printf(
-            "Process with id: %d created for the command: %s\n", pid, argv[1]
-        );
-        current_child_pid = pid;
-        int return_status;
-        struct timespec stop, real_time;
+        exit(0);
+    } else if (pid < 0) {
+        printf("Error creating new process(es)");
+        exit(0);
+    }
+    printf(
+        "Process with id: %d created for the command: %s\n", pid, argv[1]
+    );
 
-        waitid(P_PID, pid, NULL, WNOWAIT);
-        clock_gettime(CLOCK_MONOTONIC, &stop);
-        char** stats = read_proc_file_alloc(pid, "stat", 44);
-        char** statuses = read_proc_file_alloc(pid, "status", 93);
-        
-        waitpid(pid, &return_status, 0);
-        int signaled = WIFSIGNALED(return_status);
-        int signal_id = WTERMSIG(return_status);
-        timespec_diff(&start, &stop, &real_time);
-        double user_time = parse_stat_time(stats[14]);
-        double sys_time = parse_stat_time(stats[15]);
-        int context_switches = atoi(statuses[87]) + atoi(statuses[89]);
+    current_child_pid = pid;
+    int return_status;
+    struct timespec stop, real_time;
 
-        if (signaled) {
-            printf(
-                (
-                    "The command \"%s\" is interrupted"
-                    " by the signal number = %d (%s)\n"
-                ),
-                argv[1], signal_id, SIGNAL_NAMES[signal_id]
-            );
-        } else {
-            printf(
-                (
-                    "The command \"%s\" terminated"
-                    " with returned status code = %d\n"
-                ),
-                argv[1], WTERMSIG(return_status)
-            );
-        }
+    waitid(P_PID, pid, NULL, WNOWAIT);
+    clock_gettime(CLOCK_MONOTONIC, &stop);
+    char** stats = read_proc_file_alloc(pid, "stat", 44);
+    char** statuses = read_proc_file_alloc(pid, "status", 93);
+    
+    waitpid(pid, &return_status, 0);
+    int signaled = WIFSIGNALED(return_status);
+    int signal_id = WTERMSIG(return_status);
+    timespec_diff(&start, &stop, &real_time);
+    double user_time = parse_stat_time(stats[14]);
+    double sys_time = parse_stat_time(stats[15]);
+    int context_switches = atoi(statuses[87]) + atoi(statuses[89]);
+
+    if (signaled) {
         printf(
             (
-                "real: %.02lf s, user: %.02lf s, system: %.02lf s,"
-                " context switch: %d\n"
+                "The command \"%s\" is interrupted"
+                " by the signal number = %d (%s)\n"
             ),
-            to_double(&real_time), user_time, sys_time, context_switches
+            argv[1], signal_id, SIGNAL_NAMES[signal_id]
         );
-
-        double_free(stats, 44);
-        double_free(statuses, 93);
-        return 0;
     } else {
-        printf("Error creating new process(es)");
-        return 0;
+        printf(
+            (
+                "The command \"%s\" terminated"
+                " with returned status code = %d\n"
+            ),
+            argv[1], WTERMSIG(return_status)
+        );
     }
+    printf(
+        (
+            "real: %.02lf s, user: %.02lf s, system: %.02lf s,"
+            " context switch: %d\n"
+        ),
+        to_double(&real_time), user_time, sys_time, context_switches
+    );
+
+    double_free(stats, 44);
+    double_free(statuses, 93);
+    return 0;
 }

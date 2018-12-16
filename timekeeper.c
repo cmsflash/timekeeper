@@ -40,11 +40,12 @@ struct process {
     struct process* next;
 };
 
-pid_t self_pid, current_child_pid;
+int child_count;
+pid_t* child_pids;
 
 void deliver_to_child(const int signum) {
-    if (current_child_pid != self_pid) {
-        kill(current_child_pid, signum);
+    for (int i = 0; i < child_count; i++) {
+        kill(child_pids[i], signum);
     }
 }
 
@@ -109,19 +110,18 @@ int main(int argc, char** argv) {
     if (argc == 1) {
         return;
     }
-    self_pid = getpid();
-    current_child_pid = self_pid;
     signal(SIGINT, deliver_to_child);
-    int process_count = 1;
+    child_count = 1;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "!") == 0) {
-            process_count++;
+            child_count++;
         }
     }
+    child_pids = (pid_t*)malloc(child_count * sizeof(pid_t));
     
-    int* argcs = (int *)malloc(process_count * sizeof(int));
+    int* argcs = (int *)malloc(child_count * sizeof(int));
     int argv_index = 1;
-    for (int i = 0; i < process_count; i++) {
+    for (int i = 0; i < child_count; i++) {
         argcs[i] = 0;
         while (argv_index < argc && strcmp(argv[argv_index], "!") != 0) {
             argcs[i]++;
@@ -129,9 +129,9 @@ int main(int argc, char** argv) {
         }
         argv_index++;
     }
-    char*** argvs = (char ***)malloc(process_count * sizeof(char**));
+    char*** argvs = (char ***)malloc(child_count * sizeof(char**));
     argv_index = 0;
-    for (int i = 0; i < process_count; i++) {
+    for (int i = 0; i < child_count; i++) {
         argvs[i] = (char**)malloc(argcs[i] * sizeof(char*));
         argv_index++;
         for (int j = 0; j < argcs[i]; j++) {
@@ -146,15 +146,17 @@ int main(int argc, char** argv) {
     if (pid == 0) {
         execute(argvs[0][0], argvs[0]);
         exit(0);
+    } else if (pid > 0) {
+        child_pids[child_count] = pid;
+        child_count++;
+        printf(
+            "Process with id: %d created for the command: %s\n", pid, argv[1]
+        );
     } else if (pid < 0) {
         printf("Error creating new process(es)");
         exit(0);
     }
-    printf(
-        "Process with id: %d created for the command: %s\n", pid, argv[1]
-    );
 
-    current_child_pid = pid;
     int return_status;
     struct timespec stop, real_time;
 

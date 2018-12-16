@@ -160,7 +160,6 @@ int main(int argc, char** argv) {
         waitpid(pid, &return_status, 0);
         int signaled = WIFSIGNALED(return_status);
         int signal_id = WTERMSIG(return_status);
-
         timespec_diff(&start, &stop, &real_time);
         double user_time = parse_stat_time(stats[14]);
         double sys_time = parse_stat_time(stats[15]);
@@ -190,7 +189,7 @@ int main(int argc, char** argv) {
             ),
             to_double(&real_time), user_time, sys_time, context_switches
         );
-        
+
         double_free(stats, 44);
         double_free(statuses, 93);
         return 0;

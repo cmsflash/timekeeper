@@ -6,6 +6,9 @@ timekeeper: timekeeper.c
 run: timekeeper
 	./$^ python3 dummy.py
 
+test: timekeeper
+	./$^ python3 dummy.py ! echo
+
 clean:
 	rm timekeeper -rf
 

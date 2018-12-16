@@ -39,10 +39,12 @@ struct process {
     struct process* next;
 };
 
-pid_t child_pid;
+pid_t self_pid, current_child_pid;
 
 void deliver_to_child(int signum) {
-    kill(child_pid, signum);
+    if (current_child_pid != self_pid) {
+        kill(current_child_pid, signum);
+    }
 }
 
 void timespec_diff(
@@ -67,12 +69,41 @@ int main(int argc, char** argv) {
     if (argc == 1) {
         return;
     }
+    self_pid = getpid();
+    current_child_pid = self_pid;
     signal(SIGINT, deliver_to_child);
+    int process_count = 1;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "!") == 0) {
+            process_count++;
+        }
+    }
+    
+    int* argcs = (int *)malloc(process_count * sizeof(int));
+    int argv_index = 1;
+    for (int i = 0; i < process_count; i++) {
+        argcs[i] = 0;
+        while (argv_index < argc && strcmp(argv[argv_index], "!") != 0) {
+            argcs[i]++;
+            argv_index++;
+        }
+        argv_index++;
+    }
+    char*** argvs = (char ***)malloc(process_count * sizeof(char**));
+    argv_index = 0;
+    for (int i = 0; i < process_count; i++) {
+        argvs[i] = (char**)malloc(argcs[i] * sizeof(char*));
+        argv_index++;
+        for (int j = 0; j < argcs[i]; j++) {
+            argvs[i][j] = argv[argv_index];
+            argv_index++;
+        }
+    }
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
     pid_t pid = fork();
     if (pid == 0) {
-        int success_code = execvp(argv[1], argv + 1);
+        int success_code = execvp(argvs[0][0], argvs[0]);
         if (success_code == -1) {
             printf(
                 "timekeeper experienced an error in starting the command:"
@@ -85,7 +116,7 @@ int main(int argc, char** argv) {
         printf(
             "Process with id: %d created for the command: %s\n", pid, argv[1]
         );
-        child_pid = pid;
+        current_child_pid = pid;
         int return_status;
         waitid(P_PID, pid, NULL, WNOWAIT);
 

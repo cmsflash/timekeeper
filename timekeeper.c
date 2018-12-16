@@ -41,14 +41,15 @@ struct process {
 
 pid_t self_pid, current_child_pid;
 
-void deliver_to_child(int signum) {
+void deliver_to_child(const int signum) {
     if (current_child_pid != self_pid) {
         kill(current_child_pid, signum);
     }
 }
 
 void timespec_diff(
-        struct timespec *start, struct timespec *stop, struct timespec *result
+        const struct timespec *start, const struct timespec *stop,
+        struct timespec *result
     ) {
     if ((stop->tv_nsec - start->tv_nsec) < 0) {
         result->tv_sec = stop->tv_sec - start->tv_sec - 1;
@@ -57,10 +58,9 @@ void timespec_diff(
         result->tv_sec = stop->tv_sec - start->tv_sec;
         result->tv_nsec = stop->tv_nsec - start->tv_nsec;
     }
-    return;
 }
 
-double to_double(struct timespec* spec) {
+double to_double(const struct timespec* spec) {
     double time = spec->tv_sec + spec->tv_nsec / 1000000000.0;
     return time;
 }

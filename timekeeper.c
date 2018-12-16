@@ -85,6 +85,17 @@ double parse_stat_time(const char* stat) {
     return time_;
 }
 
+void execute(const char* command, const char** arguments) {
+    int success_code = execvp(command, arguments);
+    if (success_code == -1) {
+        printf(
+            "timekeeper experienced an error in starting the command: %s\n",
+            command
+        );
+        exit(1);
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc == 1) {
         return;
@@ -123,15 +134,7 @@ int main(int argc, char** argv) {
     clock_gettime(CLOCK_MONOTONIC, &start);
     pid_t pid = fork();
     if (pid == 0) {
-        int success_code = execvp(argvs[0][0], argvs[0]);
-        if (success_code == -1) {
-            printf(
-                "timekeeper experienced an error in starting the command:"
-                " %s\n",
-                argv[1]
-            );
-            exit(1);
-        }
+        execute(argvs[0][0], argvs[0]);
     } else if (pid > 0) {
         printf(
             "Process with id: %d created for the command: %s\n", pid, argv[1]

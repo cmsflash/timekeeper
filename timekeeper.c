@@ -106,6 +106,15 @@ void double_free(const void** pointer, const int length) {
     free(pointer);
 }
 
+int** create_pipes_alloc(int count) {
+    int** pipes = malloc(count * sizeof(int*));
+    for (int i = 0; i < count; i++) {
+        pipes[i] = malloc(2 * sizeof(int));
+        pipe(pipes[i]);
+    }
+    return pipes;
+}
+
 int main(int argc, char** argv) {
     if (argc == 1) {
         return;
@@ -139,6 +148,8 @@ int main(int argc, char** argv) {
             argv_index++;
         }
     }
+
+    int** pipes = create_pipes_alloc(child_count - 1);
 
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
@@ -200,5 +211,6 @@ int main(int argc, char** argv) {
 
     double_free(stats, 44);
     double_free(statuses, 93);
+    double_free(stats, child_count - 1);
     return 0;
 }

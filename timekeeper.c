@@ -151,8 +151,10 @@ int main(int argc, char** argv) {
 
     int** pipes = create_pipes_alloc(child_count - 1);
 
-    struct timespec start;
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    struct timespec* starts = (struct timespec*)malloc(
+        child_count * sizeof(struct timespec)
+    );
+    clock_gettime(CLOCK_MONOTONIC, &starts[0]);
     pid_t pid = fork();
     if (pid == 0) {
         execute(argvs[0][0], argvs[0]);
@@ -169,17 +171,22 @@ int main(int argc, char** argv) {
     }
 
     int return_status;
-    struct timespec stop, real_time;
+    struct timespec* stops = (struct timespec*)malloc(
+        child_count * sizeof(struct timespec)
+    );
+    struct timespec* real_times = (struct timespec*)malloc(
+        child_count * sizeof(struct timespec)
+    );
 
     waitid(P_PID, pid, NULL, WNOWAIT);
-    clock_gettime(CLOCK_MONOTONIC, &stop);
+    clock_gettime(CLOCK_MONOTONIC, &stops[0]);
     char** stats = read_proc_file_alloc(pid, "stat", 44);
     char** statuses = read_proc_file_alloc(pid, "status", 93);
-    
+
     waitpid(pid, &return_status, 0);
     int signaled = WIFSIGNALED(return_status);
     int signal_id = WTERMSIG(return_status);
-    timespec_diff(&start, &stop, &real_time);
+    timespec_diff(&starts[0], &stops[0], &real_times[0]);
     double user_time = parse_stat_time(stats[14]);
     double sys_time = parse_stat_time(stats[15]);
     int context_switches = atoi(statuses[87]) + atoi(statuses[89]);
@@ -206,7 +213,7 @@ int main(int argc, char** argv) {
             "real: %.02lf s, user: %.02lf s, system: %.02lf s,"
             " context switch: %d\n"
         ),
-        to_double(&real_time), user_time, sys_time, context_switches
+        to_double(&real_times[0]), user_time, sys_time, context_switches
     );
 
     double_free(stats, 44);

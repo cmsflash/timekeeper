@@ -120,17 +120,17 @@ int main(int argc, char** argv) {
         return;
     }
     signal(SIGINT, deliver_to_child);
-    child_count = 1;
+    int process_count = 1;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "!") == 0) {
-            child_count++;
+            process_count++;
         }
     }
-    child_pids = (pid_t*)malloc(child_count * sizeof(pid_t));
+    child_pids = (pid_t*)malloc(process_count * sizeof(pid_t));
     
-    int* argcs = (int *)malloc(child_count * sizeof(int));
+    int* argcs = (int *)malloc(process_count * sizeof(int));
     int argv_index = 1;
-    for (int i = 0; i < child_count; i++) {
+    for (int i = 0; i < process_count; i++) {
         argcs[i] = 0;
         while (argv_index < argc && strcmp(argv[argv_index], "!") != 0) {
             argcs[i]++;
@@ -138,9 +138,9 @@ int main(int argc, char** argv) {
         }
         argv_index++;
     }
-    char*** argvs = (char ***)malloc(child_count * sizeof(char**));
+    char*** argvs = (char ***)malloc(process_count * sizeof(char**));
     argv_index = 0;
-    for (int i = 0; i < child_count; i++) {
+    for (int i = 0; i < process_count; i++) {
         argvs[i] = (char**)malloc(argcs[i] * sizeof(char*));
         argv_index++;
         for (int j = 0; j < argcs[i]; j++) {
@@ -149,43 +149,47 @@ int main(int argc, char** argv) {
         }
     }
 
-    int** pipes = create_pipes_alloc(child_count - 1);
+    int** pipes = create_pipes_alloc(process_count - 1);
 
     struct timespec* starts = (struct timespec*)malloc(
-        child_count * sizeof(struct timespec)
+        process_count * sizeof(struct timespec)
     );
-    clock_gettime(CLOCK_MONOTONIC, &starts[0]);
-    pid_t pid = fork();
-    if (pid == 0) {
-        execute(argvs[0][0], argvs[0]);
-        exit(0);
-    } else if (pid > 0) {
-        child_pids[child_count] = pid;
-        child_count++;
-        printf(
-            "Process with id: %d created for the command: %s\n", pid, argv[1]
-        );
-    } else if (pid < 0) {
-        printf("Error creating new process(es)");
-        exit(0);
+    for (int i = 0; i < process_count; i++) {
+        clock_gettime(CLOCK_MONOTONIC, &starts[i]);
+        pid_t pid = fork();
+        if (pid == 0) {
+            execute(argvs[i][0], argvs[i]);
+            exit(0);
+        } else if (pid > 0) {
+            child_pids[i] = pid;
+            child_count++;
+            printf(
+                "Process with id: %d created for the command: %s\n",
+                pid, argvs[i][0]
+            );
+        } else if (pid < 0) {
+            printf("Error creating new process(es)");
+            exit(0);
+        }
     }
 
-    int return_status;
+    int* return_statuses = (int*)malloc(process_count * sizeof(int));
     struct timespec* stops = (struct timespec*)malloc(
-        child_count * sizeof(struct timespec)
+        process_count * sizeof(struct timespec)
     );
     struct timespec* real_times = (struct timespec*)malloc(
-        child_count * sizeof(struct timespec)
+        process_count * sizeof(struct timespec)
     );
 
-    waitid(P_PID, pid, NULL, WNOWAIT);
+    waitid(P_PID, child_pids[0], NULL, WNOWAIT);
     clock_gettime(CLOCK_MONOTONIC, &stops[0]);
-    char** stats = read_proc_file_alloc(pid, "stat", 44);
-    char** statuses = read_proc_file_alloc(pid, "status", 93);
+    char** stats = read_proc_file_alloc(child_pids[0], "stat", 44);
+    char** statuses = read_proc_file_alloc(child_pids[0], "status", 93);
 
-    waitpid(pid, &return_status, 0);
-    int signaled = WIFSIGNALED(return_status);
-    int signal_id = WTERMSIG(return_status);
+    waitpid(child_pids[0], &return_statuses[0], 0);
+    child_count--;
+    int signaled = WIFSIGNALED(return_statuses[0]);
+    int signal_id = WTERMSIG(return_statuses[0]);
     timespec_diff(&starts[0], &stops[0], &real_times[0]);
     double user_time = parse_stat_time(stats[14]);
     double sys_time = parse_stat_time(stats[15]);
@@ -205,7 +209,7 @@ int main(int argc, char** argv) {
                 "The command \"%s\" terminated"
                 " with returned status code = %d\n"
             ),
-            argv[1], WTERMSIG(return_status)
+            argv[1], WTERMSIG(return_statuses[0])
         );
     }
     printf(
@@ -218,6 +222,6 @@ int main(int argc, char** argv) {
 
     double_free(stats, 44);
     double_free(statuses, 93);
-    double_free(stats, child_count - 1);
+    double_free(stats, process_count - 1);
     return 0;
 }

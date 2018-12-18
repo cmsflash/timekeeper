@@ -145,6 +145,11 @@ void close_pipes_except(int** pipes, int count, int read, int write) {
     }
 }
 
+int is_pipe_symbol(char c) {
+    result = strcmp(argv[i], "!") == 0;
+    return result;
+}
+
 int main(int argc, char** argv) {
     if (argc == 1) {
         return;
@@ -152,7 +157,7 @@ int main(int argc, char** argv) {
     signal(SIGINT, deliver_to_child);
     int process_count = 1;
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "!") == 0) {
+        if (is_pipe_symbol(argv[i])) {
             process_count++;
         }
     }
@@ -162,7 +167,7 @@ int main(int argc, char** argv) {
     int argv_index = 1;
     for (int i = 0; i < process_count; i++) {
         argcs[i] = 0;
-        while (argv_index < argc && strcmp(argv[argv_index], "!") != 0) {
+        while (argv_index < argc && is_pipe_symbol(argv[argv_index])) {
             argcs[i]++;
             argv_index++;
         }

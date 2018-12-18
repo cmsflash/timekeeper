@@ -49,6 +49,8 @@ void deliver_to_child(const int signum) {
     }
 }
 
+// timespec utilities
+
 void timespec_diff(
     const struct timespec *start, const struct timespec *stop,
     struct timespec *result
@@ -66,6 +68,8 @@ double to_double(const struct timespec* spec) {
     double time = spec->tv_sec + spec->tv_nsec / 1000000000.0;
     return time;
 }
+
+// proc file system utilities
 
 char*** allocate_file_buffers(const int file_count, const int line_count) {
     char*** file_buffers = (char***)malloc(file_count * sizeof(char**));
@@ -98,6 +102,32 @@ double parse_stat_time(const char* stat) {
     return time_;
 }
 
+// Pipe utilities
+
+int** create_pipes_alloc(int count) {
+    int** pipes = malloc(count * sizeof(int*));
+    for (int i = 0; i < count; i++) {
+        pipes[i] = malloc(2 * sizeof(int));
+        pipe(pipes[i]);
+    }
+    return pipes;
+}
+
+void close_pipes_except(int** pipes, int count, int read, int write) {
+    for (int i = 0; i < count; i++) {
+        if (i == read) {
+            close(pipes[1]);
+        } else if (i == write) {
+            close(pipes[0]);
+        } else {
+            close(pipes[0]);
+            close(pipes[1]);
+        }
+    }
+}
+
+// Miscellanenous utilities
+
 void execute(const char* command, const char** arguments) {
     int success_code = execvp(command, arguments);
     if (success_code == -1) {
@@ -123,32 +153,12 @@ void triple_free(const void*** pointer, const int length0, const int lenght1) {
     free(pointer);
 }
 
-int** create_pipes_alloc(int count) {
-    int** pipes = malloc(count * sizeof(int*));
-    for (int i = 0; i < count; i++) {
-        pipes[i] = malloc(2 * sizeof(int));
-        pipe(pipes[i]);
-    }
-    return pipes;
-}
-
-void close_pipes_except(int** pipes, int count, int read, int write) {
-    for (int i = 0; i < count; i++) {
-        if (i == read) {
-            close(pipes[1]);
-        } else if (i == write) {
-            close(pipes[0]);
-        } else {
-            close(pipes[0]);
-            close(pipes[1]);
-        }
-    }
-}
-
 int is_pipe_symbol(char c) {
     result = strcmp(argv[i], "!") == 0 || strcmp(argv[i], "|") == 0;
     return result;
 }
+
+// Main function
 
 int main(int argc, char** argv) {
     if (argc == 1) {

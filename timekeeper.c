@@ -153,8 +153,8 @@ void triple_free(const void*** pointer, const int length0, const int lenght1) {
     free(pointer);
 }
 
-int is_pipe_symbol(char c) {
-    int result = strcmp(c, "!") == 0 || strcmp(c, "|") == 0;
+int is_pipe_symbol(char* s) {
+    int result = strcmp(s, "!") == 0 || strcmp(s, "|") == 0;
     return result;
 }
 
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
     int argv_index = 1;
     for (int i = 0; i < process_count; i++) {
         argcs[i] = 0;
-        while (argv_index < argc && is_pipe_symbol(argv[argv_index])) {
+        while (argv_index < argc && !is_pipe_symbol(argv[argv_index])) {
             argcs[i]++;
             argv_index++;
         }

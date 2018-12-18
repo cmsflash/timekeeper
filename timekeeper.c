@@ -67,20 +67,30 @@ double to_double(const struct timespec* spec) {
     return time;
 }
 
-char** read_proc_file_alloc(
-        const int pid, const char* filename, const int line_count
+char*** allocate_file_buffers(const int file_count, const int line_count) {
+    char*** file_buffers = (char***)malloc(file_count * sizeof(char**));
+    for (int i = 0; i < file_count; i++) {
+        file_buffers[i] = (char**)malloc(line_count * sizeof(char*));
+        for (int j = 0; j < line_count; j++) {
+            file_buffers[i][j] = malloc(DEFAULT_STRING_SIZE);
+        }
+    }
+    return file_buffers;
+}
+
+char** read_proc_file(
+        char** file_buffer, const int pid, const char* filename,
+        const int line_count
     ) {
     char* path = (char*)malloc(DEFAULT_STRING_SIZE);
     sprintf(path, "/proc/%d/%s", pid, filename);
-    char** lines = (char**)malloc(line_count * sizeof(char*));
     FILE* file = fopen(path, "r");
     for (int i = 0; i < line_count; i++) {
-        lines[i] = malloc(DEFAULT_STRING_SIZE);
-        fscanf(file, "%s", lines[i]);
+        file_buffer[i] = malloc(DEFAULT_STRING_SIZE);
+        fscanf(file, "%s", file_buffer[i]);
     }
     fclose(file);
     free(path);
-    return lines;
 }
 
 double parse_stat_time(const char* stat) {
@@ -102,6 +112,13 @@ void execute(const char* command, const char** arguments) {
 void double_free(const void** pointer, const int length) {
     for (int i = 0; i < length; i++) {
         free(pointer[i]);
+    }
+    free(pointer);
+}
+
+void triple_free(const void*** pointer, const int length0, const int lenght1) {
+    for (int i = 0; i < length0; i++) {
+        double_free(pointer[i], lenght1);
     }
     free(pointer);
 }
@@ -141,12 +158,13 @@ int main(int argc, char** argv) {
     char*** argvs = (char ***)malloc(process_count * sizeof(char**));
     argv_index = 0;
     for (int i = 0; i < process_count; i++) {
-        argvs[i] = (char**)malloc(argcs[i] * sizeof(char*));
+        argvs[i] = (char**)malloc((argcs[i] + 1) * sizeof(char*));
         argv_index++;
         for (int j = 0; j < argcs[i]; j++) {
             argvs[i][j] = argv[argv_index];
             argv_index++;
         }
+        argvs[i][argcs[i]] = NULL;
     }
 
     int** pipes = create_pipes_alloc(process_count - 1);
@@ -164,8 +182,8 @@ int main(int argc, char** argv) {
             child_pids[i] = pid;
             child_count++;
             printf(
-                "Process with id: %d created for the command: %s\n",
-                pid, argvs[i][0]
+                "Process with id: %d created for the command: %s %s %s\n",
+                pid, argvs[i][0], argvs[i][1], argvs[i][2]
             );
         } else if (pid < 0) {
             printf("Error creating new process(es)");
@@ -180,48 +198,56 @@ int main(int argc, char** argv) {
     struct timespec* real_times = (struct timespec*)malloc(
         process_count * sizeof(struct timespec)
     );
+    char*** stats = allocate_file_buffers(process_count, 44);
+    char*** statuses = allocate_file_buffers(process_count, 93);
 
-    waitid(P_PID, child_pids[0], NULL, WNOWAIT);
-    clock_gettime(CLOCK_MONOTONIC, &stops[0]);
-    char** stats = read_proc_file_alloc(child_pids[0], "stat", 44);
-    char** statuses = read_proc_file_alloc(child_pids[0], "status", 93);
+    for (int i = 0; i < process_count; i++) {
+        waitid(P_PID, child_pids[i], NULL, WEXITED | WNOWAIT | WNOHANG);
+        clock_gettime(CLOCK_MONOTONIC, &stops[i]);
+        read_proc_file(stats[i], child_pids[i], "stat", 44);
+        read_proc_file(statuses[i], child_pids[i], "status", 93);
+    }
+    for (int i = 0; i < process_count; i++) {
+        waitpid(child_pids[i], &return_statuses[i], 0);
+        child_count--;
+        int signaled = WIFSIGNALED(return_statuses[i]);
+        int signal_id = WTERMSIG(return_statuses[i]);
+        timespec_diff(&starts[i], &stops[i], &real_times[i]);
+        double user_time = parse_stat_time(stats[14]);
+        double sys_time = parse_stat_time(stats[15]);
+        int context_switches = atoi(statuses[87]) + atoi(statuses[89]);
 
-    waitpid(child_pids[0], &return_statuses[0], 0);
-    child_count--;
-    int signaled = WIFSIGNALED(return_statuses[0]);
-    int signal_id = WTERMSIG(return_statuses[0]);
-    timespec_diff(&starts[0], &stops[0], &real_times[0]);
-    double user_time = parse_stat_time(stats[14]);
-    double sys_time = parse_stat_time(stats[15]);
-    int context_switches = atoi(statuses[87]) + atoi(statuses[89]);
-
-    if (signaled) {
+        if (signaled) {
+            printf(
+                (
+                    "The command \"%s\" is interrupted"
+                    " by the signal number = %d (%s)\n"
+                ),
+                argv[1], signal_id, SIGNAL_NAMES[signal_id]
+            );
+        } else {
+            printf(
+                (
+                    "The command \"%s\" terminated"
+                    " with returned status code = %d\n"
+                ),
+                argv[1], WTERMSIG(return_statuses[i])
+            );
+        }
         printf(
             (
-                "The command \"%s\" is interrupted"
-                " by the signal number = %d (%s)\n"
+                "real: %.02lf s, user: %.02lf s, system: %.02lf s,"
+                " context switch: %d\n"
             ),
-            argv[1], signal_id, SIGNAL_NAMES[signal_id]
-        );
-    } else {
-        printf(
-            (
-                "The command \"%s\" terminated"
-                " with returned status code = %d\n"
-            ),
-            argv[1], WTERMSIG(return_statuses[0])
+            to_double(&real_times[i]), user_time, sys_time, context_switches
         );
     }
-    printf(
-        (
-            "real: %.02lf s, user: %.02lf s, system: %.02lf s,"
-            " context switch: %d\n"
-        ),
-        to_double(&real_times[0]), user_time, sys_time, context_switches
-    );
 
-    double_free(stats, 44);
-    double_free(statuses, 93);
-    double_free(stats, process_count - 1);
+    triple_free(stats, process_count, 44);
+    triple_free(statuses, process_count, 93);
+    double_free(pipes, process_count - 1);
+    free(starts);
+    free(stops);
+    free(real_times);
     return 0;
 }

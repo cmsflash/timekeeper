@@ -50,9 +50,9 @@ void deliver_to_child(const int signum) {
 }
 
 void timespec_diff(
-        const struct timespec *start, const struct timespec *stop,
-        struct timespec *result
-    ) {
+    const struct timespec *start, const struct timespec *stop,
+    struct timespec *result
+) {
     if ((stop->tv_nsec - start->tv_nsec) < 0) {
         result->tv_sec = stop->tv_sec - start->tv_sec - 1;
         result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
@@ -132,6 +132,19 @@ int** create_pipes_alloc(int count) {
     return pipes;
 }
 
+void close_pipes_except(int** pipes, int count, int read, int write) {
+    for (int i = 0; i < count; i++) {
+        if (i == read) {
+            close(pipes[1]);
+        } else if (i == write) {
+            close(pipes[0]);
+        } else {
+            close(pipes[0]);
+            close(pipes[1]);
+        }
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc == 1) {
         return;
@@ -176,14 +189,22 @@ int main(int argc, char** argv) {
         clock_gettime(CLOCK_MONOTONIC, &starts[i]);
         pid_t pid = fork();
         if (pid == 0) {
+            close_pipes_except(pipes, process_count - 1, i - 1, i);
+            printf("%d", i);
+            if (i - 1 >= 0) {
+                dup2(pipes[i - 1][0], 0);
+            }
+            if (i < process_count - 1) {
+                dup2(pipes[i][1], 1);
+            }
             execute(argvs[i][0], argvs[i]);
             exit(0);
         } else if (pid > 0) {
             child_pids[i] = pid;
             child_count++;
             printf(
-                "Process with id: %d created for the command: %s %s %s\n",
-                pid, argvs[i][0], argvs[i][1], argvs[i][2]
+                "Process with id: %d created for the command: %s\n",
+                pid, argvs[i][0]
             );
         } else if (pid < 0) {
             printf("Error creating new process(es)");

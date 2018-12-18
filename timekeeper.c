@@ -146,7 +146,7 @@ void close_pipes_except(int** pipes, int count, int read, int write) {
 }
 
 int is_pipe_symbol(char c) {
-    result = strcmp(argv[i], "!") == 0;
+    result = strcmp(argv[i], "!") == 0 || strcmp(argv[i], "|") == 0;
     return result;
 }
 

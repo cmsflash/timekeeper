@@ -223,7 +223,7 @@ int main(int argc, char** argv) {
     char*** statuses = allocate_file_buffers(process_count, 93);
 
     for (int i = 0; i < process_count; i++) {
-        waitid(P_PID, child_pids[i], NULL, WEXITED | WNOWAIT | WNOHANG);
+        waitid(P_PID, child_pids[i], NULL, WEXITED | WNOWAIT);
         clock_gettime(CLOCK_MONOTONIC, &stops[i]);
         read_proc_file(stats[i], child_pids[i], "stat", 44);
         read_proc_file(statuses[i], child_pids[i], "status", 93);

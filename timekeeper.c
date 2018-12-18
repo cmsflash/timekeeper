@@ -154,7 +154,7 @@ void triple_free(const void*** pointer, const int length0, const int lenght1) {
 }
 
 int is_pipe_symbol(char c) {
-    result = strcmp(argv[i], "!") == 0 || strcmp(argv[i], "|") == 0;
+    int result = strcmp(c, "!") == 0 || strcmp(c, "|") == 0;
     return result;
 }
 

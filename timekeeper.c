@@ -226,6 +226,7 @@ int main(int argc, char** argv) {
             exit(0);
         }
     }
+    close_pipes_except(pipes, process_count - 1, -1, -1);
 
     int* return_statuses = (int*)malloc(process_count * sizeof(int));
     struct timespec* stops = (struct timespec*)malloc(

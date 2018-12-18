@@ -52,6 +52,7 @@ Mkfile.old
 dkms.conf
 
 # Other files
+*.swp
 *.pdf
 *.txt
 timekeeper

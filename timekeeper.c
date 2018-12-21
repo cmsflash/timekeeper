@@ -1,13 +1,12 @@
 /*
-Filename: timekeeper_3035233228.c
+Filename: timekeeper.c
 Author: Shen Zhuoran
-U No.: 3035233228
 Development Platform:
     Ubuntu 18.04.1 LTS as Windows Subsystem for Linux,
     gcc 7.3.0
 Compilation:
-    gcc timekeeper_3035233228.c -o timekeeper_3035233228 -Wall
-Completed features: 1, 2, 3, 4, 5, 6
+    gcc timekeeper.c -o timekeeper -Wall
+Completed features: 1, 2, 3, 4, 5, 6, 7
 */
 
 #include <stdio.h>
